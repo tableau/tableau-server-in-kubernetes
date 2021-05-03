@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: <upgrade-job-name>
+  namespace: <deployment-namespace>
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsUser: 999
+        fsGroup: 998
+      terminationGracePeriodSeconds: 120
+      hostname: <host-name>
+      containers:
+      - name: tableau-server-in-a-container-upgrade-container
+        image: <image-name>
+        env:
+        - name: LICENSE_KEY
+          value: <License>
+        resources:
+          requests:
+            memory: 32Gi
+            cpu: 8
+        ports:
+        - containerPort: 8080
+        - containerPort: 8443
+        volumeMounts:
+        - name: datamount
+          mountPath: /var/opt/tableau
+        imagePullPolicy: IfNotPresent
+      volumes:
+      - name: datamount
+        persistentVolumeClaim:
+          claimName: <datadir-pvc-name>
+      restartPolicy: Never

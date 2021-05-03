@@ -1,0 +1,126 @@
+# tableau-server-in-a-container-pod.yml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tableau-server-in-a-container-deployment
+  namespace: <deployment-namespace>
+  labels:
+    app: <application-name>
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: <application-name>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configfile
+  namespace: <deployment-namespace>
+data:
+  config.json: |-
+    {
+      "configEntities": {
+        "identityStore": {
+          "_type": "identityStoreType",
+          "type": "local"
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: datadir
+  namespace: <deployment-namespace>
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <deployment-name>
+  namespace: <deployment-namespace>
+spec:
+  progressDeadlineSeconds: 1800
+  selector:
+    matchLabels:
+      app: <application-name>
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: <application-name>
+    spec: 
+      securityContext:
+        runAsUser: 999
+        fsGroup: 998
+      terminationGracePeriodSeconds: 120
+      hostname: <host-name>
+      containers:
+      - name: <container-name>
+        image: <image-name>
+        env:
+        - name: LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: license_key
+        - name: TABLEAU_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: tableau_username
+        - name: TABLEAU_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: tableau_password
+        resources:
+          requests:
+            memory: 32Gi
+            cpu: 8
+          limits:
+            memory: 32Gi
+            cpu: 8
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: configmount
+          mountPath: /docker/config/config.json
+          subPath: config.json
+        - name: datamount
+          mountPath: /var/opt/tableau
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - /docker/server-ready-check
+          initialDelaySeconds: 360
+          periodSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - /docker/alive-check
+          initialDelaySeconds: 600
+          periodSeconds: 60
+      dnsPolicy: ClusterFirst
+      volumes:
+      - name: configmount
+        configMap:
+          name: configfile
+      - name: datamount
+        persistentVolumeClaim:
+          claimName: datadir

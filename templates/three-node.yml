@@ -1,0 +1,224 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: <deployment-name>
+  namespace: <deployment-namespace>
+spec:
+  publishNotReadyAddresses: true
+  selector:
+    app: <application-name>
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configfile
+  namespace: <deployment-namespace>
+data:
+  config.json: |-
+    {
+      "configEntities": {
+        "identityStore": {
+          "_type": "identityStoreType",
+          "type": "local"
+        }
+      },
+      "topologyVersion" : {
+        "nodes" : {
+          <TABLEAU SERVER TOPOLOGY>
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: datadir
+  namespace: <deployment-namespace>
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: <size>
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workerdir
+  namespace: <deployment-namespace>
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: <size>
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: primary
+  namespace: <deployment-namespace>
+  labels:
+    app: <application-name>
+spec:
+  selector:
+    matchLabels:
+      app: <application-name>
+  replicas: 1
+  serviceName: <service-name>
+  template:
+    metadata:
+      labels:
+        app: <application-name>
+    spec:
+      securityContext:
+        runAsUser: 999
+        fsGroup: 998
+      terminationGracePeriodSeconds: 120
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - <dns-ip>
+        searches:
+          - <service-name>.<deployment-namespace>.svc.<cluster-domain>.<example>
+          - <deployment-namespace>.svc.<cluster-domain>.<example>
+          - svc.<cluster-domain>.<example>
+          - <cluster-domain>.<example>
+        options:
+          - name: ndots
+            value: "5"
+      containers:
+      - name: <container-name>
+        image: <image-name>
+        env:
+        - name: LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: license_key
+        - name: TABLEAU_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: tableau_username
+        - name: TABLEAU_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: tableau_password
+        resources:
+          requests:
+            memory: 32Gi
+            cpu: 8
+          limits:
+            memory: 32Gi
+            cpu: 8
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: configmount
+          mountPath: /docker/config/config.json
+          subPath: config.json
+        - name: datamount
+          mountPath: /var/opt/tableau
+        - name: nfs-volume
+          mountPath: /docker/config/bootstrap
+        imagePullPolicy: IfNotPresent
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - /docker/server-ready-check
+          initialDelaySeconds: 360
+          periodSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - /docker/alive-check
+          initialDelaySeconds: 600
+          periodSeconds: 60
+      volumes:
+      - name: configmount
+        configMap:
+          name: configfile
+      - name: datamount
+        persistentVolumeClaim:
+          claimName: datadir
+      - name: nfs-volume
+        nfs:
+          server: <nfs-ip>
+          path: /
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: worker
+  namespace: <deployment-namespace>
+  labels:
+    app: <application-name>
+spec:
+  selector:
+    matchLabels:
+      app: <application-name>
+  replicas: 1
+  serviceName: <service-name>
+  template:
+    metadata:
+      labels:
+        app: <application-name>
+    spec:
+      securityContext:
+        runAsUser: 999
+        fsGroup: 998
+      terminationGracePeriodSeconds: 120
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - <dns-ip>
+        searches:
+          - <service-name>.<deployment-namespace>.svc.<cluster-domain>.<example>
+          - <deployment-namespace>.svc.<cluster-domain>.<example>
+          - svc.<cluster-domain>.<example>
+          - <cluster-domain>.<example>
+        options:
+          - name: ndots
+            value: "5"
+      containers:
+      - name: <container-name>
+        image: <image-name>
+        env:
+        - name: LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: license_key
+        - name: BOOTSTRAP_INSTALL
+          value: "1"
+        resources:
+          requests:
+            memory: 32Gi
+            cpu: 8
+          limits:
+            memory: 32Gi
+            cpu: 8
+        ports:
+        - containerPort: 8080
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: nfs-volume
+          mountPath: /docker/config/bootstrap
+        - name: workermount
+          mountPath: /var/opt/tableau
+      volumes:
+      - name: nfs-volume
+        nfs:
+          server: <nfs-ip>
+          path: /
+      - name: workermount
+        persistentVolumeClaim:
+          claimName: workerdir
