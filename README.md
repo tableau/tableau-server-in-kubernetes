@@ -42,7 +42,7 @@ The readiness check indicates whether Tableau Server is running and business ser
 Another option is to use TCP health checks against port 8080 (or whatever port Tableau Server is bound to receive traffic). Sometimes this kind of TCP health check is more reliable than the server-ready-check, as the server-ready-check is based on service status reported to TSM which can sometimes be delayed as service state is updated.
 
 ## Resource Limits
-We strongly recommend that deployments to Kubernetes set appropriate resource limits for the deployed containers matching at least min spec for the Tableau Server instance being used.
+We strongly recommend that deployments to Kubernetes set appropriate resource limits for the deployed containers. Note that Tableau Server has significant resource requirements, make sure that the resource limits you specify matching at least the [Tableau Server resource requirements for testing and production](https://help.tableau.com/current/server-linux/en-us/server_hardware_min.htm).
 
 ## Network Properties
 Tableau Server does not handle container hostname changes well, so it is important to specify the container's internal hostname so it is consistent between container runs.
