@@ -1,9 +1,7 @@
 # Tableau Server In Kubernetes
 [![Community Supported](https://img.shields.io/badge/Support%20Level-Community%20Supported-457387.svg)](https://www.tableau.com/support-levels-it-and-developer-tools)
 
-This project consists of documentation and examples demonstrating how to run Tableau Server in an existing Kubernetes cluster. Make sure the Tableau Server image used is sourced from the Tableau Server in a Container Project.
-
-Tableau Server in a Container Project (documentation)
+This project consists of documentation and examples demonstrating how to run Tableau Server in an existing Kubernetes cluster. Make sure the Tableau Server image used is sourced from the [Tableau Server in a Container Project](https://help.tableau.com/current/server-linux/en-us/server-in-container.htm).
 
 # Project Resources
 Kubernetes example templates are stored in the `templates/` directory of this project. There are single-node, multi-node, and upgrade job templates that can be used as starting points.
