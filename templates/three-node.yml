@@ -55,6 +55,18 @@ spec:
     requests:
       storage: <size>
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workerdir2
+  namespace: <deployment-namespace>
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: <size>
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -222,3 +234,72 @@ spec:
       - name: workermount
         persistentVolumeClaim:
           claimName: workerdir
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: worker2
+  namespace: <deployment-namespace>
+  labels:
+    app: <application-name>
+spec:
+  selector:
+    matchLabels:
+      app: <application-name>
+  replicas: 1
+  serviceName: <service-name>
+  template:
+    metadata:
+      labels:
+        app: <application-name>
+    spec:
+      securityContext:
+        runAsUser: 999
+        fsGroup: 998
+      terminationGracePeriodSeconds: 120
+      dnsPolicy: "None"
+      dnsConfig:
+        nameservers:
+          - <dns-ip>
+        searches:
+          - <service-name>.<deployment-namespace>.svc.<cluster-domain>.<example>
+          - <deployment-namespace>.svc.<cluster-domain>.<example>
+          - svc.<cluster-domain>.<example>
+          - <cluster-domain>.<example>
+        options:
+          - name: ndots
+            value: "5"
+      containers:
+      - name: <container-name>
+        image: <image-name>
+        env:
+        - name: LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tableau-server-in-a-container-secrets
+              key: license_key
+        - name: BOOTSTRAP_INSTALL
+          value: "1"
+        resources:
+          requests:
+            memory: 32Gi
+            cpu: 8
+          limits:
+            memory: 32Gi
+            cpu: 8
+        ports:
+        - containerPort: 8080
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: nfs-volume
+          mountPath: /docker/config/bootstrap
+        - name: workermount
+          mountPath: /var/opt/tableau
+      volumes:
+      - name: nfs-volume
+        nfs:
+          server: <nfs-ip>
+          path: /
+      - name: workermount
+        persistentVolumeClaim:
+          claimName: workerdir2
