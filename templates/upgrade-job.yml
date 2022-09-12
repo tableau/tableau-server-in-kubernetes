@@ -9,6 +9,7 @@ spec:
       securityContext:
         runAsUser: 999
         fsGroup: 998
+        fsGroupChangePolicy: "OnRootMismatch"
       terminationGracePeriodSeconds: 120
       hostname: <host-name>
       containers:
