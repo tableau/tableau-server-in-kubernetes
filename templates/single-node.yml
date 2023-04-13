@@ -109,6 +109,7 @@ spec:
             - /docker/server-ready-check
           initialDelaySeconds: 360
           periodSeconds: 30
+          timeoutSeconds: 20
         livenessProbe:
           exec:
             command:
@@ -117,6 +118,7 @@ spec:
             - /docker/alive-check
           initialDelaySeconds: 600
           periodSeconds: 60
+          timeoutSeconds: 30
       dnsPolicy: ClusterFirst
       volumes:
       - name: configmount
