@@ -128,6 +128,8 @@ spec:
           limits:
             memory: 32Gi
             cpu: 8
+        securityContext:
+          allowPrivilegeEscalation: true
         ports:
         - containerPort: 8080
         volumeMounts:
